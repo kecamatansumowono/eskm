@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uploader Survei IKM eSKM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#f3f5f2;--sf:#fff;--tx:#1d2a24;--mu:#5d6b64;--ac:#1f6b4f;--ac2:#e6f1ec;--bd:#cfd8d2;--er:#b3261e;--ok:#1f6b4f;--wr:#8a5a00}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121a16;--sf:#1a2520;--tx:#e6eee9;--mu:#9aaba2;--ac:#5fc79b;--ac2:#21352b;--bd:#2f423a;--er:#ff8a80;--ok:#5fc79b;--wr:#e8b04a}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.55 "Segoe UI",system-ui,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+main{max-width:980px;margin:0 auto;padding:24px 16px 60px}
+h1{font:700 26px/1.2 Georgia,"Times New Roman",serif;margin:0 0 4px}
+h2{font:600 17px/1.3 Georgia,serif;margin:0 0 10px}
+p.sub{color:var(--mu);margin:0 0 20px;max-width:70ch}
+section{background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:18px;margin-bottom:16px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+label{display:block;font-size:13px;color:var(--mu);margin-bottom:3px}
+input[type=text],input[type=number]{width:100%;padding:8px;border:1px solid var(--bd);border-radius:4px;background:var(--bg);color:var(--tx);font:inherit}
+button{font:inherit;padding:9px 16px;border-radius:4px;border:1px solid var(--ac);background:var(--ac);color:#fff;cursor:pointer}
+@media (prefers-color-scheme:dark){button{color:#0d1712}}
+button.ghost{background:transparent;color:var(--ac)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.drop{border:2px dashed var(--bd);border-radius:6px;padding:26px;text-align:center;color:var(--mu);cursor:pointer}
+.drop.on{border-color:var(--ac);background:var(--ac2)}
+.wrap{overflow-x:auto;max-height:340px;border:1px solid var(--bd);border-radius:4px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--ac2)}
+.ok{color:var(--ok)}.bad{color:var(--er)}.warn{color:var(--wr)}
+textarea{width:100%;height:150px;font:12px/1.4 ui-monospace,Consolas,monospace;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:4px;padding:8px}
+ol{padding-left:20px;margin:0}li{margin-bottom:6px}
+code{background:var(--ac2);padding:1px 5px;border-radius:3px}
+.stat{font-size:14px;margin:8px 0}
+.bmk{display:inline-block;padding:9px 18px;border-radius:4px;background:var(--ac);color:#fff;text-decoration:none;cursor:grab;pointer-events:auto}
+.bmk.off{opacity:.45;pointer-events:none}
+@media (prefers-color-scheme:dark){.bmk{color:#0d1712}}
+</style>
+</head>
+<body>
+<main>
+<h1>Uploader Survei IKM eSKM</h1>
+<p class="sub">Unggah Excel hasil isian, periksa datanya, lalu kirim ke eSKM langsung dari tab browser Anda yang sudah login. Kata sandi tidak diperlukan di halaman ini.</p>
+
+<section>
+  <h2>1. Berkas Excel</h2>
+  <div class="row" style="margin-bottom:12px">
+    <button class="ghost" id="btnTpl">Unduh template Excel</button>
+    <span style="color:var(--mu);font-size:13px">Sheet “Data Responden”, data mulai baris ke-4.</span>
+  </div>
+  <label class="drop" id="drop" tabindex="0">
+    <input type="file" id="file" accept=".xlsx,.xls" hidden>
+    Seret berkas Excel ke sini atau klik untuk memilih
+  </label>
+  <div class="stat" id="info"></div>
+</section>
+
+<section>
+  <h2>2. Isian bawaan</h2>
+  <div class="grid">
+    <div><label>Email responden</label><input type="text" id="email" value="kecamatansumowono12@gmail.com"></div>
+    <div><label>ID Provinsi</label><input type="text" id="prov" value="10"></div>
+    <div><label>ID Kab/Kota</label><input type="text" id="kab" value="173"></div>
+    <div><label>ID Kecamatan</label><input type="text" id="kec" value="2503"></div>
+    <div><label>Alamat</label><input type="text" id="alamat" value="Kec. Sumowono, Kab. Semarang"></div>
+    <div><label>Jeda antar kiriman (ms)</label><input type="number" id="delay" value="1500" min="500" step="100"></div>
+  </div>
+</section>
+
+<section>
+  <h2>3. Pratinjau dan validasi</h2>
+  <div class="stat" id="sum">Belum ada data.</div>
+  <div class="wrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+</section>
+
+<section>
+  <h2>4. Kirim ke eSKM</h2>
+  <ol>
+    <li>Buka <code>https://eskm.kabsmg.id/survey</code> di tab baru dan login.</li>
+    <li>Tekan <code>F12</code>, pilih tab <b>Console</b>. Jika diminta, ketik <code>allow pasting</code> lalu Enter.</li>
+    <li>Klik “Salin skrip” di bawah, tempel di Console, tekan Enter.</li>
+  </ol>
+  <div class="row" style="margin:12px 0">
+    <button id="btnCopy" disabled>Salin skrip pengiriman</button>
+    <span id="copyMsg" class="ok"></span>
+  </div>
+  <textarea id="out" readonly placeholder="Skrip akan muncul di sini setelah data valid."></textarea>
+</section>
+<section>
+  <h2>Alternatif: satu klik lewat bookmark</h2>
+  <ol>
+    <li>Seret tombol di bawah ke bilah bookmark browser (Ctrl+Shift+B untuk menampilkannya). Cukup sekali per berkas Excel.</li>
+    <li>Login ke eSKM dan buka <code>https://eskm.kabsmg.id/survey</code>.</li>
+    <li>Klik bookmark “Kirim IKM”. Konfirmasi muncul, lalu pengiriman berjalan.</li>
+  </ol>
+  <div class="row" style="margin:12px 0">
+    <a id="bm" class="bmk off" href="#" draggable="true" onclick="return false">Kirim IKM</a>
+    <span id="bmInfo" style="color:var(--mu);font-size:13px">Unggah Excel dulu agar bookmark terisi data.</span>
+  </div>
+  <div style="color:var(--mu);font-size:13px">Jika tidak bisa diseret: klik kanan tombol, pilih “Tambahkan ke bookmark” / “Bookmark link”. Bila data Excel diganti, seret ulang bookmark yang baru.</div>
+</section>
+</main>
+
+<script>
+const JK={"L":"1","LAKI-LAKI":"1","P":"2","PEREMPUAN":"2"};
+const PEND={"SD":"1","SD/SEDERAJAT":"1","SLTP":"2","SMP":"2","SLTP/SEDERAJAT":"2","SLTA":"3","SMA":"3","SLTA/SEDERAJAT":"3","DIPLOMA":"4","D1":"4","D2":"4","D3":"4","D1/D2/D3":"4","D3/SEDERAJAT":"4","SARJANA":"5","S1":"5","S-1":"5","PASCA SARJANA":"6","S2":"6","S3":"6","S-2":"6","S-3":"6"};
+const PEK={"PNS":"7","TNI":"7","POLRI":"7","PNS/ASN":"7","ASN":"7","PNS / TNI / POLRI":"7","PENSIUNAN":"8","PEGAWAI SWASTA":"9","KARYAWAN SWASTA":"9","WIRASWASTA":"10","BURUH":"11","BURUH (TANI/BANGUNAN)":"11","PELAJAR":"12","MAHASISWA":"12","PELAJAR/MAHASISWA":"12","TIDAK BEKERJA":"13","LAINNYA":"14","LAINYA":"14","PETANI":"64"};
+const COLS=["no","nama","jk","usia","pendidikan","pekerjaan"];
+for(let i=1;i<=9;i++)COLS.push("u"+i+"_kualitas","u"+i+"_kepentingan");
+COLS.push("saran");
+
+function cari(v,map){
+  const k=String(v??"").trim().toUpperCase(); if(!k)return null;
+  if(k in map)return map[k];
+  for(const m in map){if(k.includes(m)||m.includes(k))return map[m];}
+  return null;
+}
+const $=id=>document.getElementById(id);
+let rows=[];
+
+function parse(buf){
+  const wb=XLSX.read(buf,{type:"array"});
+  const ws=wb.Sheets["Data Responden"]||wb.Sheets[wb.SheetNames[0]];
+  const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:""}).slice(3);
+  rows=[];
+  raw.forEach((r,i)=>{
+    const o={};COLS.forEach((c,j)=>o[c]=r[j]??"");
+    if(!String(o.nama).trim())return;
+    const err=[];
+    const jk=cari(o.jk,JK),pd=cari(o.pendidikan,PEND),pk=cari(o.pekerjaan,PEK);
+    const usia=parseInt(o.usia,10);
+    if(!jk)err.push("JK");
+    if(!pd)err.push("Pendidikan");
+    if(!pk)err.push("Pekerjaan");
+    if(!(usia>0))err.push("Usia");
+    const k=[],p=[];
+    for(let u=1;u<=9;u++){
+      const a=parseInt(o["u"+u+"_kualitas"],10),b=parseInt(o["u"+u+"_kepentingan"],10);
+      if(!(a>=1&&a<=4))err.push("U"+u+" kualitas");
+      if(!(b>=1&&b<=4))err.push("U"+u+" kepentingan");
+      k.push(a);p.push(b);
+    }
+    rows.push({baris:i+4,nama:String(o.nama).trim(),usia,jk,pd,pk,saran:String(o.saran||"").trim(),k,p,err,src:o});
+  });
+  render();
+}
+
+function render(){
+  const good=rows.filter(r=>!r.err.length),bad=rows.length-good.length;
+  $("sum").innerHTML=`<b>${rows.length}</b> responden terbaca: <span class="ok">${good.length} siap kirim</span>`+(bad?`, <span class="bad">${bad} akan dilewati</span>`:"");
+  $("tbl").tHead.innerHTML="<tr><th>Baris</th><th>Nama</th><th>JK</th><th>Usia</th><th>Pendidikan</th><th>Pekerjaan</th><th>Kualitas</th><th>Kepentingan</th><th>Status</th></tr>";
+  const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  $("tbl").tBodies[0].innerHTML=rows.map(r=>`<tr><td>${r.baris}</td><td>${esc(r.nama)}</td><td>${esc(r.src.jk)}</td><td>${r.usia||""}</td><td>${esc(r.src.pendidikan)}</td><td>${esc(r.src.pekerjaan)}</td><td>${r.k.join(" ")}</td><td>${r.p.join(" ")}</td><td class="${r.err.length?"bad":"ok"}">${r.err.length?"Periksa: "+esc(r.err.join(", ")):"OK"}</td></tr>`).join("");
+  $("btnCopy").disabled=!good.length;
+  const code=good.length?buildScript(good):"";
+  $("out").value=code;
+  const bm=$("bm"),bi=$("bmInfo");
+  if(code){
+    const url="javascript:"+encodeURIComponent(code);
+    bm.href=url;bm.classList.remove("off");
+    const kb=Math.round(url.length/1024);
+    bi.textContent=kb+" KB, "+good.length+" responden.";
+    if(kb>1500)bi.textContent+=" Terlalu besar untuk sebagian browser; pecah Excel menjadi beberapa berkas.";
+  }else{bm.href="#";bm.classList.add("off");bi.textContent="Unggah Excel dulu agar bookmark terisi data."}
+}
+
+// Skrip yang dijalankan di Console pada halaman eskm.kabsmg.id/survey (same-origin, memakai sesi login Anda)
+async function runner(DATA,CFG){
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const box=document.createElement("pre");
+  box.style.cssText="position:fixed;right:10px;bottom:10px;width:420px;max-width:92vw;height:260px;overflow:auto;background:#111;color:#8f8;font:12px monospace;padding:8px;z-index:99999;margin:0;white-space:pre-wrap";
+  document.body.appendChild(box);
+  const say=t=>{box.textContent+=t+"\n";box.scrollTop=box.scrollHeight;console.log(t)};
+  const idOrg=document.getElementById("idOrg")?.value,fidKues=document.getElementById("fidKues")?.value;
+  const sel=document.getElementById("fidPeriode");
+  const fidPeriode=sel?(sel.selectedOptions[0]||sel.options[0])?.value:null;
+  const stk=(typeof stoken!=="undefined"?stoken:null)||(document.documentElement.innerHTML.match(/stoken\s*=\s*'([^']+)'/)||[])[1];
+  if(!idOrg||!fidKues||!fidPeriode||!stk){alert("Halaman survei tidak terdeteksi. Login dan buka /survey dulu.");box.remove();return}
+  if(!confirm("Kirim "+DATA.length+" responden ke eSKM?"))return box.remove();
+  const H={"X-CSRF-TOKEN":stk,"X-Requested-With":"XMLHttpRequest"};
+  async function struktur(){
+    const r=await fetch("/survey/form-detil",{method:"POST",credentials:"same-origin",headers:H,body:new URLSearchParams({fidOrganisasi:idOrg,fidPeriode,fidKues})});
+    const j=await r.json();
+    if(j.status!=="ok")throw new Error("Gagal ambil form: "+(j.pesan||""));
+    const d=new DOMParser().parseFromString(j.data,"text/html");
+    const f=d.getElementById("formdetil");
+    const token=f.querySelector('input[name="_token"]')?.value||stk;
+    const tgl=f.querySelector('input[name="dt[tglSurvey]"]')?.value||"";
+    const u={};
+    f.querySelectorAll('input[type=radio]').forEach(i=>{
+      const m=i.name.match(/^dt\[jawab(Kinerja|Kepentingan)\]\[(\d+)\]$/);if(!m)return;
+      (u[m[2]]=u[m[2]]||{Kinerja:[],Kepentingan:[]})[m[1]].push(i.value);
+    });
+    return {token,tgl,u};
+  }
+  let ok=0,gagal=0;
+  for(const r of DATA){
+    try{
+      const {token,tgl,u}=await struktur();
+      const ids=Object.keys(u);
+      if(ids.length!==9)say("[PERINGATAN] unsur terdeteksi: "+ids.length);
+      const b=new URLSearchParams({
+        "_token":token,"dt[fidKuesioner]":fidKues,"dt[fidOrganisasi]":idOrg,"dt[fidSurvey]":"","dt[sumber]":"2",
+        "dt[fidPeriode]":fidPeriode,"dt[tglSurvey]":tgl,"dt[namaResponden]":r.nama,"dt[idResponden]":"",
+        "dt[emailResponden]":CFG.email,"dt[noHp]":"","dt[umurResponden]":r.usia,"dt[jnsKelamin]":r.jk,
+        "dt[fidProv]":CFG.prov,"dt[fidKabKota]":CFG.kab,"dt[fidKecamatan]":CFG.kec,"dt[alamat]":CFG.alamat,
+        "dt[pendidikan]":r.pd,"dt[pekerjaan]":r.pk,"dt[isPungli]":"0","dt[masukan]":r.saran
+      });
+      ids.forEach((id,i)=>{
+        b.set("dt[jawabKinerja]["+id+"]",u[id].Kinerja[r.k[i]-1]);
+        b.set("dt[jawabKepentingan]["+id+"]",u[id].Kepentingan[r.p[i]-1]);
+      });
+      const res=await fetch("/survey/form-simpan",{method:"POST",credentials:"same-origin",headers:H,body:b});
+      let h;try{h=await res.json()}catch(e){h={status:"error",pesan:"Respons bukan JSON"}}
+      if(h.status==="ok")ok++;else gagal++;
+      say("Baris "+r.baris+" ("+r.nama+"): "+h.status+" "+(h.pesan||""));
+    }catch(e){gagal++;say("[ERROR] Baris "+r.baris+" ("+r.nama+"): "+e.message)}
+    await sleep(CFG.delay);
+  }
+  say("\nSELESAI. Berhasil: "+ok+", gagal: "+gagal);
+}
+
+function buildScript(good){
+  const cfg={email:$("email").value,prov:$("prov").value,kab:$("kab").value,kec:$("kec").value,alamat:$("alamat").value,delay:+$("delay").value||1500};
+  const data=good.map(r=>({baris:r.baris,nama:r.nama,usia:r.usia,jk:r.jk,pd:r.pd,pk:r.pk,saran:r.saran,k:r.k,p:r.p}));
+  return "("+runner.toString()+")("+JSON.stringify(data)+","+JSON.stringify(cfg)+");";
+}
+
+function load(file){
+  if(!file)return;
+  $("info").textContent="Membaca "+file.name+"…";
+  const fr=new FileReader();
+  fr.onload=e=>{try{parse(e.target.result);$("info").textContent="Berkas: "+file.name}catch(x){$("info").innerHTML='<span class="bad">Gagal membaca berkas: '+x.message+'</span>'}};
+  fr.readAsArrayBuffer(file);
+}
+$("file").onchange=e=>load(e.target.files[0]);
+const dz=$("drop");
+dz.ondragover=e=>{e.preventDefault();dz.classList.add("on")};
+dz.ondragleave=()=>dz.classList.remove("on");
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove("on");load(e.dataTransfer.files[0])};
+["email","prov","kab","kec","alamat","delay"].forEach(id=>$(id).oninput=()=>{if(rows.length)render()});
+
+$("btnCopy").onclick=async()=>{
+  try{await navigator.clipboard.writeText($("out").value)}catch(e){$("out").select();document.execCommand("copy")}
+  $("copyMsg").textContent="Skrip tersalin.";setTimeout(()=>$("copyMsg").textContent="",2500);
+};
+
+$("btnTpl").onclick=()=>{
+  const head=["No","Nama","JK (L/P)","Usia","Pendidikan","Pekerjaan"];
+  const sub=["","","","","",""];
+  for(let i=1;i<=9;i++){head.push("U"+i,"U"+i);sub.push("Kualitas (1-4)","Kepentingan (1-4)")}
+  head.push("Saran");sub.push("");
+  const ex=[1,"Contoh Nama","L",35,"SMA","Wiraswasta",3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,"Pelayanan sudah baik"];
+  const ws=XLSX.utils.aoa_to_sheet([["Template Survei IKM"],head,sub,ex]);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Data Responden");
+  XLSX.writeFile(wb,"Template_Survey_IKM_Eskm.xlsx");
+};
+</script>
+</body>
+</html>
